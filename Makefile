@@ -34,3 +34,8 @@ push: clean docker rootfs create enable
 	@echo "### push plugin ${PLUGIN_NAME}:${PLUGIN_TAG}"
 	docker plugin push ${PLUGIN_NAME}:${PLUGIN_TAG}
 
+debug:
+	DEBUG_FLAGS="-gcflags '-N -l'" make build-plugin
+
+build-plugin:
+	go build -o splunk-logging-driver ${DEBUG_FLAGS} ./*.go
