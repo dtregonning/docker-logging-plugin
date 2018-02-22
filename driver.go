@@ -146,26 +146,40 @@ const (
 )
 
 // New creates splunk logger driver using configuration passed in context
+
+/*(##023##) - the struct that is passed ito new is found here - https://github.com/moby/moby/blob/master/daemon/logger/loginfo.go
+	    - captures hostname sets to hostname
+/*(##024##)*/ - 
+/*(##025##)*/
+/*(##026##)*/
+/*(##027##)*/
+/*(##028##)*/
+/*(##029##)*/
+
 func New(info logger.Info) (logger.Logger, error) {
+	/*(##023##)*/
+
 	hostname, err := info.Hostname()
 	if err != nil {
 		return nil, fmt.Errorf("%s: cannot access hostname to set source field", driverName)
 	}
-
+	/*(##024##)*/
 	// Parse and validate Splunk URL
 	splunkURL, err := parseURL(info)
 	if err != nil {
 		return nil, err
 	}
-
+	
+	/*(##025##)*/
 	// Splunk Token is required parameter
 	splunkToken, ok := info.Config[splunkTokenKey]
 	if !ok {
 		return nil, fmt.Errorf("%s: %s is expected", driverName, splunkTokenKey)
 	}
-
+	
+	/*(##026##)*/
 	tlsConfig := &tls.Config{}
-
+	
 	// Splunk is using auto-generated certificates by default,
 	// allow users to trust them with skipping verification
 	if insecureSkipVerifyStr, ok := info.Config[splunkInsecureSkipVerifyKey]; ok {
@@ -191,6 +205,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		tlsConfig.ServerName = caName
 	}
 
+	/*(##027##)*/
 	gzipCompression := false
 	if gzipCompressionStr, ok := info.Config[splunkGzipCompressionKey]; ok {
 		gzipCompression, err = strconv.ParseBool(gzipCompressionStr)
@@ -213,14 +228,16 @@ func New(info logger.Info) (logger.Logger, error) {
 			return nil, err
 		}
 	}
-
+	
+	/*(##028##)*/
 	transport := &http.Transport{
 		TLSClientConfig: tlsConfig,
 	}
 	client := &http.Client{
 		Transport: transport,
 	}
-
+	
+	/*(##029##)*/
 	source := info.Config[splunkSourceKey]
 	sourceType := info.Config[splunkSourceTypeKey]
 	index := info.Config[splunkIndexKey]
@@ -231,7 +248,8 @@ func New(info logger.Info) (logger.Logger, error) {
 		SourceType: sourceType,
 		Index:      index,
 	}
-
+	
+	/*(##030##)*/
 	// Allow user to remove tag from the messages by setting tag to empty string
 	tag := ""
 	if tagTemplate, ok := info.Config[tagKey]; !ok || tagTemplate != "" {
@@ -240,19 +258,22 @@ func New(info logger.Info) (logger.Logger, error) {
 			return nil, err
 		}
 	}
-
+	
+	/*(##031##)*/
 	attrs, err := info.ExtraAttributes(nil)
 	if err != nil {
 		return nil, err
 	}
-
+	
+	/*(##032##)*/
 	var (
 		postMessagesFrequency = getAdvancedOptionDuration(envVarPostMessagesFrequency, defaultPostMessagesFrequency)
 		postMessagesBatchSize = getAdvancedOptionInt(envVarPostMessagesBatchSize, defaultPostMessagesBatchSize)
 		bufferMaximum         = getAdvancedOptionInt(envVarBufferMaximum, defaultBufferMaximum)
 		streamChannelSize     = getAdvancedOptionInt(envVarStreamChannelSize, defaultStreamChannelSize)
 	)
-
+	
+	/*(##033##)*/
 	logger := &splunkLogger{
 		client:                client,
 		transport:             transport,
@@ -266,7 +287,8 @@ func New(info logger.Info) (logger.Logger, error) {
 		postMessagesBatchSize: postMessagesBatchSize,
 		bufferMaximum:         bufferMaximum,
 	}
-
+	
+	/*(##034##)*/
 	// By default we verify connection, but we allow use to skip that
 	verifyConnection := true
 	if verifyConnectionStr, ok := info.Config[splunkVerifyConnectionKey]; ok {
@@ -282,7 +304,8 @@ func New(info logger.Info) (logger.Logger, error) {
 			return nil, err
 		}
 	}
-
+	
+	/*(##035##)*/
 	var splunkFormat string
 	if splunkFormatParsed, ok := info.Config[splunkFormatKey]; ok {
 		switch splunkFormatParsed {
@@ -659,9 +682,9 @@ type driver struct {
 
 /* ##006## (logPair Object)(Boiler Plate)
 			- logPair Object has 4 internal Objects
-			1.) 2 Logger interfaces jsonl and splunkl (github.com/docker/docker/daemon/logger/logger.go)
+			1.) 2 Logger interfaces jsonl and splunkl (https://github.com/moby/moby/blob/masterdaemon/logger/logger.go)
 			2.) A ReadCloser interface - (https://golang.org/pkg/io/#ReadCloser)
-			3.) The Info struct which can be found (github.com/docker/docker/daemon/logger/loginfo.go)
+			3.) The Info struct which can be found (https://github.com/moby/moby/blob/master/daemon/logger/loginfo.go)
  */
 type logPair struct {
 	jsonl   logger.Logger
@@ -687,10 +710,12 @@ func newDriver() *driver {
 	- (##017##) - mutex lock the driver and check if file already exists or not. mutex used to ensure no double
                   up requests. guarantees state
 	- (##018##) - if no LogPath is set passed as part of Info, create a Logpath by concatenating
-				  /var/log/docker with the ContainerId uses filepath.Join (https://golang.org/pkg/path/filepath/#Join)
-	- (##019##) -
-
-
+		      var/log/docker with the ContainerId uses filepath.Join (https://golang.org/pkg/path/filepath/#Join)
+	- (##019##) - Creates logging directory with file permissions 0755 for passed in file
+	- (##020##) - Creates default json file logger from https://github.com/moby/moby/blob/master/daemon/logger/jsonfilelog/jsonfilelog.go
+		      Part of struct logpair( - investigate if still required
+	- (##021##) - Simple Validatation options passed in as part of driver. Big switch statement name checking against consts identified earlier 
+	- (##022##) - Creation of Splunk Logging object - Calls New function ((##023##)) which does bulk of work.
 */
 func (d *driver) StartLogging(file string, logCtx logger.Info) error {
 	/*(##017##)*/
@@ -726,21 +751,21 @@ func (d *driver) StartLogging(file string, logCtx logger.Info) error {
 		return errors.Wrap(err, "error creating splunk logger")
 	}
 
-	/*(##023##)*/
+	/*(##0xx##)*/
 	logrus.WithField("id", logCtx.ContainerID).WithField("file", file).WithField("logpath", logCtx.LogPath).Debugf("Start logging")
 	f, err := fifo.OpenFifo(context.Background(), file, syscall.O_RDONLY, 0700)
 	if err != nil {
 		return errors.Wrapf(err, "error opening logger fifo: %q", file)
 	}
 
-	/*(##024##)*/
+	/*(##0xx##)*/
 	d.mu.Lock()
 	lf := &logPair{jsonl, splunkl, f, logCtx}
 	d.logs[file] = lf
 	d.idx[logCtx.ContainerID] = lf
 	d.mu.Unlock()
 
-	/*(##025##)*/
+	/*(##0xx##)*/
 	go consumeLog(lf)
 	return nil
 }
@@ -771,7 +796,7 @@ func sendMessage(l logger.Logger, buf *logdriver.LogEntry, containerid string) b
 	return true
 }
 
-/*(##026##)
+/*(##0xx##)
 	- Using Protocol Buffers implemented here: https://github.com/gogo/protobuf/blob/master/io/uint32.go
 	- 1e6 = 1,000,000
 
