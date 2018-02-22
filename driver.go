@@ -147,14 +147,18 @@ const (
 
 // New creates splunk logger driver using configuration passed in context
 
-/*(##023##) - the struct that is passed ito new is found here - https://github.com/moby/moby/blob/master/daemon/logger/loginfo.go
+/*(##023##) - the struct that is passed to New is found here - https://github.com/moby/moby/blob/master/daemon/logger/loginfo.go
 	    - captures hostname sets to hostname
-/*(##024##)*/ - 
-/*(##025##)*/
-/*(##026##)*/
-/*(##027##)*/
-/*(##028##)*/
-/*(##029##)*/
+(##024##)   - calls parseURL which will validate the format of the value in info.Config[splunkURLKey]. Checks for format, checks for scheme 
+            - and will set a deafult if required. 
+(##025##)   - Sets the Splunk HEC token, errors if issue
+(##026##)   - Beginning of Security component. Creates a TLS Object with an empty config - 
+            - extra config options available here (https://golang.org/src/crypto/tls/common.go?s=12277:20617#L321)
+	    - We are doing checks and configurations for tlsConfig.InsecureSkipVerify, tlsConfig.RootCAs and tlsConfig.ServerName
+(##027##)   - Gzip Compression implementation. Options range from 1 - 9. see --splunk-gzip and --splunk-gzip-level
+(##028##)   - Default HTTP client implementation. Nothing exciting here yet.
+(##029##)   - Seetting of source, sourcetpe and index as passed in by --splunk-source, --splunk-sourcetype and --splunk-index
+*/
 
 func New(info logger.Info) (logger.Logger, error) {
 	/*(##023##)*/
@@ -241,7 +245,8 @@ func New(info logger.Info) (logger.Logger, error) {
 	source := info.Config[splunkSourceKey]
 	sourceType := info.Config[splunkSourceTypeKey]
 	index := info.Config[splunkIndexKey]
-
+	
+	/*(##030##)*/
 	var nullMessage = &splunkMessage{
 		Host:       hostname,
 		Source:     source,
@@ -249,7 +254,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		Index:      index,
 	}
 	
-	/*(##030##)*/
+	/*(##031##)*/
 	// Allow user to remove tag from the messages by setting tag to empty string
 	tag := ""
 	if tagTemplate, ok := info.Config[tagKey]; !ok || tagTemplate != "" {
